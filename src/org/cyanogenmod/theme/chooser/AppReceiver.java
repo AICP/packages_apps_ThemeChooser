@@ -19,14 +19,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.content.res.ThemeManager;
 import android.net.Uri;
 import org.cyanogenmod.theme.util.NotificationHelper;
-import org.cyanogenmod.theme.util.PreferenceUtils;
-
-import java.util.Set;
 
 public class AppReceiver extends BroadcastReceiver {
 
@@ -38,25 +33,14 @@ public class AppReceiver extends BroadcastReceiver {
         boolean isReplacing = intent.getExtras().getBoolean(Intent.EXTRA_REPLACING, false);
 
         if (Intent.ACTION_PACKAGE_ADDED.equals(action) && !isReplacing) {
-            if (!isThemeBeingProcessed(context, pkgName)) {
-                NotificationHelper.postThemeInstalledNotification(context, pkgName);
-            } else {
-                // store this package name so we know it's being processed
-                PreferenceUtils.addThemeBeingProcessed(context, pkgName);
+            try {
+                if (isTheme(context, pkgName)) {
+                    NotificationHelper.postThemeInstalledNotification(context, pkgName);
+                }
+            } catch (NameNotFoundException e) {
             }
         } else if (Intent.ACTION_PACKAGE_FULLY_REMOVED.equals(action)) {
             NotificationHelper.cancelNotificationForPackage(context, pkgName);
-        } else if (Intent.ACTION_THEME_RESOURCES_CACHED.equals(action)) {
-            final String themePkgName = intent.getStringExtra(Intent.EXTRA_THEME_PACKAGE_NAME);
-            final int result = intent.getIntExtra(Intent.EXTRA_THEME_RESULT,
-                    PackageManager.INSTALL_FAILED_THEME_UNKNOWN_ERROR);
-            Set<String> processingThemes =
-                    PreferenceUtils.getInstalledThemesBeingProcessed(context);
-            if (processingThemes != null &&
-                    processingThemes.contains(themePkgName) && result >= 0) {
-                NotificationHelper.postThemeInstalledNotification(context, themePkgName);
-                PreferenceUtils.removeThemeBeingProcessed(context, themePkgName);
-            }
         }
     }
 
@@ -70,10 +54,5 @@ public class AppReceiver extends BroadcastReceiver {
         }
 
         return false;
-    }
-
-    private boolean isThemeBeingProcessed(Context context, String pkgName) {
-        ThemeManager tm = (ThemeManager) context.getSystemService(Context.THEME_SERVICE);
-        return tm.isThemeBeingProcessed(pkgName);
     }
 }
